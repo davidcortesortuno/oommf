@@ -82,7 +82,7 @@ Oxs_DMI_D2d::Oxs_DMI_D2d(
 		  (unsigned int)params.size());
       throw Oxs_Ext::Error(this,buf);
   }
-  for(i=0;i<static_cast<OC_INDEX>(params.size());i+=3) {
+  for(i=0;i<params.size();i+=3) {
     OC_INT4m i1 = atlas->GetRegionId(params[i]);
     OC_INT4m i2 = atlas->GetRegionId(params[i+1]);
     if(i1<0 || i2<0) {
@@ -191,6 +191,7 @@ void Oxs_DMI_D2d::GetEnergy
   OC_INDEX xdim = mesh->DimX();
   OC_INDEX ydim = mesh->DimY();
   OC_INDEX zdim = mesh->DimZ();
+  OC_INDEX xydim = xdim*ydim;
 
   OC_REAL8m wgtx = 1.0/(mesh->EdgeLengthX());
   OC_REAL8m wgty = 1.0/(mesh->EdgeLengthY());
@@ -203,7 +204,6 @@ void Oxs_DMI_D2d::GetEnergy
       for(OC_INDEX x=0;x<xdim;x++) {
 	OC_INDEX i = mesh->Index(x,y,z); // Get base linear address
 	ThreeVector base = spin[i];
-
 	OC_REAL8m Msii = Ms_inverse[i];
 	if(Msii == 0.0) {
 	  energy[i]=0.0;
@@ -212,36 +212,30 @@ void Oxs_DMI_D2d::GetEnergy
 	}
 	OC_REAL8m* Drow = D[region_id[i]];
 	ThreeVector sum(0.,0.,0.);
-	ThreeVector zu(0.,0.,1.);
 	
 	if(y>0) {//exchange in direction y-
 	  OC_INDEX j = i-xdim;
 	  OC_REAL8m Dpair = Drow[region_id[j]];
-	  ThreeVector uij(0.,-1.,0);
-	  sum.x += 0.5*Dpair*wgty*(-1 * spin[j].z);
-	  sum.z -= 0.5*Dpair*wgty*(-1 * spin[j].x);
-	  
+	  ThreeVector Dij(0.,1.,0);
+	  if(Ms_inverse[j]!=0.0) sum += 0.5*Dpair*wgty*(Dij ^ spin[j]);
 	}
 	if(x>0) {//exchange in direction x-
 	  OC_INDEX j = i-1;
 	  OC_REAL8m Dpair = Drow[region_id[j]];
-	  ThreeVector uij(-1.,0.,0);
-	  sum.y += 0.5*Dpair*wgtx*(-1 * spin[j].z);
-	  sum.z -= 0.5*Dpair*wgtx*(-1 * spin[j].y);
+	  ThreeVector Dij(-1.,0.,0);
+	  if(Ms_inverse[j]!=0.0) sum += 0.5*Dpair*wgtx*(Dij ^ spin[j]);
 	}
 	if(x<xdim-1) {//exchange in direction x+
 	  OC_INDEX j = i+1;
 	  OC_REAL8m Dpair = Drow[region_id[j]];
-	  ThreeVector uij(1.,0.,0);
-	  sum.y += 0.5*Dpair*wgtx*(spin[j].z);
-	  sum.z -= 0.5*Dpair*wgtx*(spin[j].y);
+	  ThreeVector Dij(1.,0.,0);
+	  if(Ms_inverse[j]!=0.0) sum += 0.5*Dpair*wgtx*(Dij ^ spin[j]);
 	}
 	if(y<ydim-1) {//exchange in direction y+
 	  OC_INDEX j = i+xdim;
 	  OC_REAL8m Dpair = Drow[region_id[j]];
-	  ThreeVector uij(0.,1.,0);
-	  sum.x += 0.5*Dpair*wgty*(spin[j].z);
-	  sum.z -= 0.5*Dpair*wgty*(spin[j].x);
+	  ThreeVector Dij(0.,-1.,0);
+	  if(Ms_inverse[j]!=0.0) sum += 0.5*Dpair*wgty*(Dij ^ spin[j]);
 	}
 	
 	
