@@ -3,10 +3,14 @@
  * Dzyaloshinsky-Moriya class for materials with D_2d crystallographic
  * symmetry [1]:
  *
- *      w_D = D ( L_{zx}^{(y)} + L_{zy}^{(x)} )
+ *      w_D = D ( L_{xz}^{(y)} + L_{yz}^{(x)} )
  *
  * Modification from Oxs_exchange6ngbr [2] by 
- * V. Nehruji, D. Cortes, H. Fangohr, P. Hatton
+ * V. Nehruji[*], D. Cortes[+], H. Fangohr[+,o], P. Hatton[*]
+ *
+ * [*] Department of Physics, University of Durham
+ * [+] University of Southampton
+ * [o] European XFEL GmbH
  *
  * [1] A. N. Bogdanov and D. A. Yablonskii. Zh. Eksp. Teor. Fiz. 95, 178-182 (1989).
  * [2] Rohart, S., & Thiaville, A. Physical Review B, 88, 184422 (2013).
@@ -35,6 +39,11 @@ private:
   Oxs_OwnedPointer<Oxs_Atlas> atlas;
   mutable OC_INT4m mesh_id;
   mutable Oxs_MeshValue<OC_INT4m> region_id;
+
+  // Periodic boundaries?
+  mutable int xperiodic;
+  mutable int yperiodic;
+  mutable int zperiodic;
 
 protected:
   virtual void GetEnergy(const Oxs_SimState& state,

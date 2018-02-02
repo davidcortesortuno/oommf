@@ -286,7 +286,7 @@ void Oxs_BulkDMI::GetEnergy
           if (Ms_inverse[j] != 0.0) {
             OC_REAL8m Dpair = Drow[region_id[j]];
             ThreeVector uij(1.,0.,0);
-            sum += 0.5*Dpair*wgtx*(spin[j] ^ uij);
+            sum += 0.5 * Dpair * wgtx * (spin[j] ^ uij);
           }
         }
 

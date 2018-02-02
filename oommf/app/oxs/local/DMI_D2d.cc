@@ -6,7 +6,11 @@
  *      w_D = D ( L_{xz}^{(y)} + L_{yz}^{(x)} )
  *
  * Modification from Oxs_exchange6ngbr [2] by 
- * V. Nehruji, D. Cortes, H. Fangohr, P. Hatton
+ * V. Nehruji[*], D. Cortes[+], H. Fangohr[+,o], P. Hatton[*]
+ *
+ * [*] Department of Physics, University of Durham
+ * [+] University of Southampton
+ * [o] European XFEL GmbH
  *
  * [1] A. N. Bogdanov and D. A. Yablonskii. Zh. Eksp. Teor. Fiz. 95, 178-182 (1989).
  * [2] Rohart, S., & Thiaville, A. Physical Review B, 88, 184422 (2013).
@@ -41,7 +45,9 @@ Oxs_DMI_D2d::Oxs_DMI_D2d(
   Oxs_Director* newdtr, // App director
   const char* argstr)   // MIF input block parameters
   : Oxs_Energy(name,newdtr,argstr),
-    A_size(0), D(NULL), mesh_id(0)
+    A_size(0), D(NULL), 
+    xperiodic(0),yperiodic(0),zperiodic(0),
+    mesh_id(0)
 {
   // Process arguments
   OXS_GET_INIT_EXT_OBJECT("atlas",Oxs_Atlas,atlas);
@@ -178,15 +184,34 @@ void Oxs_DMI_D2d::GetEnergy
   Oxs_MeshValue<OC_REAL8m>& energy = *oed.energy_buffer;
   Oxs_MeshValue<ThreeVector>& field = *oed.field_buffer;
 
-  const Oxs_RectangularMesh* mesh
-    = dynamic_cast<const Oxs_RectangularMesh*>(state.mesh);
+  // Check periodicity --------------------------------------------------------
+  const Oxs_CommonRectangularMesh* mesh
+    = dynamic_cast<const Oxs_CommonRectangularMesh*>(state.mesh);
   if(mesh==NULL) {
-    String msg = String("Import mesh to Oxs_DMI_D2d::GetEnergy()"
-                        " routine of object ")
-      + String(InstanceName())
-      + String(" is not an Oxs_RectangularMesh object.");
-    throw Oxs_Ext::Error(msg.c_str());
+    String msg=String("Object ")
+      + String(state.mesh->InstanceName())
+      + String(" is not a rectangular mesh.");
+    throw Oxs_ExtError(this,msg);
   }
+
+  const Oxs_RectangularMesh* rmesh
+    = dynamic_cast<const Oxs_RectangularMesh*>(mesh);
+  const Oxs_PeriodicRectangularMesh* pmesh
+    = dynamic_cast<const Oxs_PeriodicRectangularMesh*>(mesh);
+  if(pmesh!=NULL) {
+    // Rectangular, periodic mesh
+    xperiodic = pmesh->IsPeriodicX();
+    yperiodic = pmesh->IsPeriodicY();
+    zperiodic = pmesh->IsPeriodicZ();
+  } else if (rmesh!=NULL) {
+    xperiodic=0; yperiodic=0; zperiodic=0;
+  } else {
+    String msg=String("Unknown mesh type: \"")
+      + String(ClassName())
+      + String("\".");
+    throw Oxs_ExtError(this,msg.c_str());
+  }
+  // --------------------------------------------------------------------------
 
   OC_INDEX xdim = mesh->DimX();
   OC_INDEX ydim = mesh->DimY();
@@ -202,46 +227,72 @@ void Oxs_DMI_D2d::GetEnergy
   for(OC_INDEX z=0;z<zdim;z++) {
     for(OC_INDEX y=0;y<ydim;y++) {
       for(OC_INDEX x=0;x<xdim;x++) {
-	OC_INDEX i = mesh->Index(x,y,z); // Get base linear address
-	ThreeVector base = spin[i];
-	OC_REAL8m Msii = Ms_inverse[i];
-	if(Msii == 0.0) {
-	  energy[i]=0.0;
-	  field[i].Set(0.,0.,0.);
-	  continue;
-	}
-	OC_REAL8m* Drow = D[region_id[i]];
-	ThreeVector sum(0.,0.,0.);
-	
-	if(y>0) {//exchange in direction y-
-	  OC_INDEX j = i-xdim;
-	  OC_REAL8m Dpair = Drow[region_id[j]];
-	  ThreeVector Dij(0.,1.,0);
-	  if(Ms_inverse[j]!=0.0) sum += 0.5*Dpair*wgty*(Dij ^ spin[j]);
-	}
-	if(x>0) {//exchange in direction x-
-	  OC_INDEX j = i-1;
-	  OC_REAL8m Dpair = Drow[region_id[j]];
-	  ThreeVector Dij(-1.,0.,0);
-	  if(Ms_inverse[j]!=0.0) sum += 0.5*Dpair*wgtx*(Dij ^ spin[j]);
-	}
-	if(x<xdim-1) {//exchange in direction x+
-	  OC_INDEX j = i+1;
-	  OC_REAL8m Dpair = Drow[region_id[j]];
-	  ThreeVector Dij(1.,0.,0);
-	  if(Ms_inverse[j]!=0.0) sum += 0.5*Dpair*wgtx*(Dij ^ spin[j]);
-	}
-	if(y<ydim-1) {//exchange in direction y+
-	  OC_INDEX j = i+xdim;
-	  OC_REAL8m Dpair = Drow[region_id[j]];
-	  ThreeVector Dij(0.,-1.,0);
-	  if(Ms_inverse[j]!=0.0) sum += 0.5*Dpair*wgty*(Dij ^ spin[j]);
-	}
-	
-	
-	
-	field[i] = (hcoef*Msii) * sum;
-	energy[i] = (sum * base);
+	    OC_INDEX i = mesh->Index(x,y,z); // Get base linear address
+	    ThreeVector base = spin[i];
+	    OC_REAL8m Msii = Ms_inverse[i];
+	    if(Msii == 0.0) {
+	      energy[i]=0.0;
+	      field[i].Set(0.,0.,0.);
+	      continue;
+	    }
+	    OC_REAL8m* Drow = D[region_id[i]];
+	    ThreeVector sum(0.,0.,0.);
+        OC_INDEX j;
+
+        if(y > 0 || yperiodic) {  // y- direction
+          if(y > 0) {
+            j = i - xdim;
+          } else if (yperiodic) {
+            j = i - xdim + xydim;
+          }
+          if(Ms_inverse[j] != 0.0) {
+            OC_REAL8m Dpair = Drow[region_id[j]];
+            ThreeVector Dij(0.,1.,0);
+            sum += 0.5 * Dpair * wgty * (Dij ^ spin[j]);
+          }
+        }
+
+        if(x > 0 || xperiodic) {  // x- direction
+          if(x > 0) {
+            j = i - 1;
+          } else if (xperiodic) {
+            j = i - 1 + xdim;
+          }
+          if(Ms_inverse[j] != 0.0) {
+            OC_REAL8m Dpair = Drow[region_id[j]];
+            ThreeVector Dij(-1.,0.,0);
+            sum += 0.5 * Dpair * wgtx * (Dij ^ spin[j]);
+          }
+        }
+
+        if(y < ydim - 1 || yperiodic) {  // y+ direction
+          if (y < ydim-1) {
+            j = i + xdim;
+          } else if (yperiodic) {
+            j = i + xdim - xydim;
+          }
+          if(Ms_inverse[j] != 0.0) {
+            OC_REAL8m Dpair = Drow[region_id[j]];
+            ThreeVector Dij(0.,-1.,0);
+            sum += 0.5 * Dpair * wgty * (Dij ^ spin[j]);
+          }
+        }
+
+        if(x < xdim-1 || xperiodic) {  // x+ direction
+          if (x < xdim-1) {
+            j = i + 1;
+          } else if (xperiodic) {
+            j = i + 1 - xdim;
+          }
+          if (Ms_inverse[j] != 0.0) {
+            OC_REAL8m Dpair = Drow[region_id[j]];
+            ThreeVector Dij(1.,0.,0);
+            sum += 0.5 * Dpair * wgtx * (Dij ^ spin[j]);
+          }
+        }
+
+	    field[i] = (hcoef * Msii) * sum;
+	    energy[i] = (sum * base);
       }
     }
   }

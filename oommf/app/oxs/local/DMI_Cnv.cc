@@ -46,7 +46,9 @@ Oxs_DMI_Cnv::Oxs_DMI_Cnv(
   Oxs_Director* newdtr, // App director
   const char* argstr)   // MIF input block parameters
   : Oxs_Energy(name,newdtr,argstr),
-    A_size(0), D(NULL), mesh_id(0)
+    A_size(0), D(NULL), 
+    xperiodic(0), yperiodic(0), zperiodic(0),
+    mesh_id(0)
 {
   // Process arguments
   OXS_GET_INIT_EXT_OBJECT("atlas",Oxs_Atlas,atlas);
@@ -216,7 +218,7 @@ void Oxs_DMI_Cnv::GetEnergy
   OC_INDEX ydim = mesh->DimY();
   OC_INDEX zdim = mesh->DimZ();
   OC_INDEX xydim = xdim * ydim;
-  OC_INDEX xyzdim = xdim * ydim * zdim;
+  // OC_INDEX xyzdim = xdim * ydim * zdim;
 
   OC_REAL8m wgtx = 1.0/(mesh->EdgeLengthX());
   OC_REAL8m wgty = 1.0/(mesh->EdgeLengthY());
