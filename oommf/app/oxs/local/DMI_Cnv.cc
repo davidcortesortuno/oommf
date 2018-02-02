@@ -1,17 +1,22 @@
-/* FILE: BulkDMI.cc
+/* FILE: DMI_Cnv.cc            -*-Mode: c++-*-
  *
- * Bulk Dzyaloshinskii-Moriya energy:
+ * C_nv symmetry Dzyaloshinskii-Moriya energy [1]:
  *
- * $w_\text{dmi} = D\mathbf{m} \cdot (\nabla \times \mathbf{m})$
+ * $w_\text{dmi} = D (  L_{zx}^{(x)} + L_{zy}^{(y)} )
  *
- * Modification by Marijan Beg, Ryan A. Pepper, D. Cortes and Hans Fangohr (University of Southampton) of Oxs_DMexchange6ngbr.h [1] - January 2017
+ * Working with Periodic Boundaries.
+ *
+ * Modification by D. Cortes, Marijan Beg and Hans Fangohr (University of Southampton) 
+ * of Oxs_DMexchange6ngbr.h [1]
  *
  * Developed as a part of OpenDreamKit Horizon 2020 European Research Infrastructure
  * project (676541), and the EPSRC Programme grant on Skyrmionics (EP/N032128/1).
  *
- * [1] Rohart, S., & Thiaville, A. Physical Review B, 88, 184422 (2013).
+ * [1] A. N. Bogdanov and D. A. Yablonskii. Zh. Eksp. Teor. Fiz. 95, 178-182 (1989).
+ * [2] Rohart, S., & Thiaville, A. Physical Review B, 88, 184422 (2013).
  *
-*/
+ * This is the up-to-date version for OOMMF 1.2.a.5.
+ */
 
 #include <string>
 
@@ -24,26 +29,24 @@
 #include "simstate.h"
 #include "threevector.h"
 #include "rectangularmesh.h"
-#include "BulkDMI.h"
-#include "energy.h"     // Needed to make MSVC++ 5 happy
+#include "DMI_Cnv.h"
+#include "energy.h"		// Needed to make MSVC++ 5 happy
 
 OC_USE_STRING;
 
 // Oxs_Ext registration support
-OXS_EXT_REGISTER(Oxs_BulkDMI);
+OXS_EXT_REGISTER(Oxs_DMI_Cnv);
 
 /* End includes */
 
 
 // Constructor
-Oxs_BulkDMI::Oxs_BulkDMI(
+Oxs_DMI_Cnv::Oxs_DMI_Cnv(
   const char* name,     // Child instance id
   Oxs_Director* newdtr, // App director
   const char* argstr)   // MIF input block parameters
   : Oxs_Energy(name,newdtr,argstr),
-    A_size(0), D(NULL),
-    xperiodic(0),yperiodic(0),zperiodic(0),
-    mesh_id(0)
+    A_size(0), D(NULL), mesh_id(0)
 {
   // Process arguments
   OXS_GET_INIT_EXT_OBJECT("atlas",Oxs_Atlas,atlas);
@@ -78,10 +81,10 @@ Oxs_BulkDMI::Oxs_BulkDMI(
   if(params.size()%3!=0) {
       char buf[512];
       Oc_Snprintf(buf,sizeof(buf),
-          "Number of elements in D sub-list must be"
-          " divisible by 3"
-          " (actual sub-list size: %u)",
-          (unsigned int)params.size());
+		  "Number of elements in D sub-list must be"
+		  " divisible by 3"
+		  " (actual sub-list size: %u)",
+		  (unsigned int)params.size());
       throw Oxs_Ext::Error(this,buf);
   }
   for(i=0;i<params.size();i+=3) {
@@ -91,25 +94,25 @@ Oxs_BulkDMI::Oxs_BulkDMI(
       char buf[4096];
       char* cptr=buf;
       if(i1<0) {
-    Oc_Snprintf(buf,sizeof(buf),
-            "First entry in D[%u] sub-list, \"%s\","
-            " is not a known region in atlas \"%s\".  ",
-            i/3,params[i].c_str(),atlas->InstanceName());
-    cptr += strlen(buf);
+	Oc_Snprintf(buf,sizeof(buf),
+		    "First entry in D[%u] sub-list, \"%s\","
+		    " is not a known region in atlas \"%s\".  ",
+		    i/3,params[i].c_str(),atlas->InstanceName());
+	cptr += strlen(buf);
       }
       if(i2<0) {
-    Oc_Snprintf(cptr,sizeof(buf)-(cptr-buf),
-            "Second entry in D[%u] sub-list, \"%s\","
-            " is not a known region in atlas \"%s\".  ",
-            i/3,params[i+1].c_str(),atlas->InstanceName());
+	Oc_Snprintf(cptr,sizeof(buf)-(cptr-buf),
+		    "Second entry in D[%u] sub-list, \"%s\","
+		    " is not a known region in atlas \"%s\".  ",
+		    i/3,params[i+1].c_str(),atlas->InstanceName());
       }
       String msg = String(buf);
       msg += String("Known regions:");
       vector<String> regions;
       atlas->GetRegionList(regions);
       for(unsigned int j=0;j<regions.size();++j) {
-    msg += String(" \n");
-    msg += regions[j];
+	msg += String(" \n");
+	msg += regions[j];
       }
       throw Oxs_Ext::Error(this,msg);
     }
@@ -118,9 +121,9 @@ Oxs_BulkDMI::Oxs_BulkDMI(
     if(err) {
       char buf[4096];
       Oc_Snprintf(buf,sizeof(buf),
-          "Third entry in D[%u] sub-list, \"%s\","
-          " is not a valid floating point number.",
-          i/3,params[i+2].c_str());
+		  "Third entry in D[%u] sub-list, \"%s\","
+		  " is not a valid floating point number.",
+		  i/3,params[i+2].c_str());
       throw Oxs_Ext::Error(this,buf);
     }
     D[i1][i2]=Dpair;
@@ -131,7 +134,7 @@ Oxs_BulkDMI::Oxs_BulkDMI(
   VerifyAllInitArgsUsed();
 }
 
-Oxs_BulkDMI::~Oxs_BulkDMI()
+Oxs_DMI_Cnv::~Oxs_DMI_Cnv()
 {
   if(A_size>0 && D!=NULL) {
     delete[] D[0];
@@ -139,20 +142,18 @@ Oxs_BulkDMI::~Oxs_BulkDMI()
   }
 }
 
-OC_BOOL Oxs_BulkDMI::Init()
+OC_BOOL Oxs_DMI_Cnv::Init()
 {
   mesh_id = 0;
   region_id.Release();
   return Oxs_Energy::Init();
 }
 
-void Oxs_BulkDMI::GetEnergy
+void Oxs_DMI_Cnv::GetEnergy
 (const Oxs_SimState& state,
  Oxs_EnergyData& oed
  ) const
 {
-
-
   // See if mesh and/or atlas has changed.
   if(mesh_id !=  state.mesh->Id() || !atlaskey.SameState()) {
     // Setup region mapping
@@ -163,12 +164,12 @@ void Oxs_BulkDMI::GetEnergy
     for(OC_INDEX i=0;i<size;i++) {
       state.mesh->Center(i,location);
       if((region_id[i] = atlas->GetRegionId(location))<0) {
-    String msg = String("Import mesh to Oxs_BulkDMI::GetEnergy()"
+	String msg = String("Import mesh to Oxs_DMI_Cnv::GetEnergy()"
                             " routine of object ")
           + String(InstanceName())
-      + String(" has points outside atlas ")
-      + String(atlas->InstanceName());
-    throw Oxs_Ext::Error(msg.c_str());
+	  + String(" has points outside atlas ")
+	  + String(atlas->InstanceName());
+	throw Oxs_Ext::Error(msg.c_str());
       }
     }
     mesh_id = state.mesh->Id();
@@ -214,12 +215,12 @@ void Oxs_BulkDMI::GetEnergy
   OC_INDEX xdim = mesh->DimX();
   OC_INDEX ydim = mesh->DimY();
   OC_INDEX zdim = mesh->DimZ();
-  OC_INDEX xydim = xdim*ydim;
-  OC_INDEX xyzdim = xdim*ydim*zdim;
+  OC_INDEX xydim = xdim * ydim;
+  OC_INDEX xyzdim = xdim * ydim * zdim;
 
   OC_REAL8m wgtx = 1.0/(mesh->EdgeLengthX());
   OC_REAL8m wgty = 1.0/(mesh->EdgeLengthY());
-  OC_REAL8m wgtz = 1.0/(mesh->EdgeLengthZ());
+  //OC_REAL8m wgtz = -1.0/(mesh->EdgeLengthZ()*mesh->EdgeLengthZ());
 
   OC_REAL8m hcoef = -2/MU0;
 
@@ -230,15 +231,29 @@ void Oxs_BulkDMI::GetEnergy
         ThreeVector base = spin[i];
         OC_REAL8m Msii = Ms_inverse[i];
         if(Msii == 0.0) {
-          energy[i] = 0.0;
+          energy[i]=0.0;
           field[i].Set(0.,0.,0.);
           continue;
         }
         OC_REAL8m* Drow = D[region_id[i]];
         ThreeVector sum(0.,0.,0.);
+        ThreeVector zu(0.,0.,1.);
         OC_INDEX j;
 
-        if(x > 0 || xperiodic) {
+        if(y > 0 || yperiodic) {  // y- direction
+          if(y > 0) {
+            j = i - xdim;
+          } else if (yperiodic) {
+            j = i - xdim + xydim;
+          }
+          if(Ms_inverse[j] != 0.0) {
+            OC_REAL8m Dpair = Drow[region_id[j]];
+            ThreeVector uij(0.,-1.,0);
+            sum += 0.5 * Dpair * wgty * (spin[j] ^ (zu ^ uij));
+          }
+        }
+
+        if(x > 0 || xperiodic) {  // x- direction
           if(x > 0) {
             j = i - 1;        // j = mesh->Index(x-1,y,z)
           } else if (xperiodic) {
@@ -247,33 +262,20 @@ void Oxs_BulkDMI::GetEnergy
           if(Ms_inverse[j] != 0.0) {
             OC_REAL8m Dpair = Drow[region_id[j]];
             ThreeVector uij(-1.,0.,0);
-            sum += 0.5 * Dpair * wgtx * (spin[j] ^ uij);
+            sum += 0.5 * Dpair * wgtx * (spin[j] ^ (zu ^ uij));
           }
         }
 
-        if(y > 0 || yperiodic) {
-          if(y > 0) {
-            j = i-xdim;
+        if(y < ydim - 1 || yperiodic) {  // y+ direction
+          if (y < ydim-1) {
+            j = i + xdim;
           } else if (yperiodic) {
-            j = i - xdim + xydim;
+            j = i + xdim - xydim;
           }
           if(Ms_inverse[j] != 0.0) {
             OC_REAL8m Dpair = Drow[region_id[j]];
-            ThreeVector uij(0.,-1.,0);
-            sum += 0.5 * Dpair * wgty * (spin[j] ^ uij);
-          }
-        }
-
-        if(z > 0 || zperiodic) {
-          if(z > 0) {
-            j = i - xydim;
-          } else if (zperiodic) {
-            j = i - xydim + xyzdim;
-          }
-          if(Ms_inverse[j] != 0.0) {
-            OC_REAL8m Dpair = Drow[region_id[j]];
-            ThreeVector uij(0.,0.,-1.);
-            sum += 0.5 * Dpair * wgtz * (spin[j] ^ uij);
+            ThreeVector uij(0.,1.,0);
+            sum += 0.5 * Dpair * wgty * (spin[j] ^ (zu ^ uij));
           }
         }
 
@@ -286,38 +288,12 @@ void Oxs_BulkDMI::GetEnergy
           if (Ms_inverse[j] != 0.0) {
             OC_REAL8m Dpair = Drow[region_id[j]];
             ThreeVector uij(1.,0.,0);
-            sum += 0.5*Dpair*wgtx*(spin[j] ^ uij);
+            sum += 0.5 * Dpair * wgtx * (spin[j] ^ (zu ^ uij));
           }
         }
-
-        if(y < ydim - 1 || yperiodic) {
-          if (y < ydim-1) {
-            j = i + xdim;
-          } else if (yperiodic) {
-            j = i + xdim - xydim;
-          }
-          if(Ms_inverse[j] != 0.0) {
-            OC_REAL8m Dpair = Drow[region_id[j]];
-            ThreeVector uij(0.,1.,0);
-            sum += 0.5 * Dpair * wgty * (spin[j] ^ uij);
-          }
-        }
-
-        if(z < zdim - 1 || zperiodic) {
-          if(z < zdim - 1) {
-            j = i + xydim;
-          } else if (zperiodic) {
-            j = i + xydim - xyzdim;
-          }
-          if(Ms_inverse[j] != 0.0) {
-            OC_REAL8m Dpair = Drow[region_id[j]];
-            ThreeVector uij(0.,0.,1.);
-            sum += 0.5 * Dpair * wgtz * (spin[j] ^ uij);
-          }
-        }
-
-        field[i] = (hcoef*Msii) * sum;
-        energy[i] = (sum * base);
+	
+	    field[i]  = (hcoef * Msii) * sum;
+	    energy[i] = (sum * base);
       }
     }
   }
