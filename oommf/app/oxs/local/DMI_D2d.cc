@@ -8,6 +8,8 @@
  * Modification from Oxs_exchange6ngbr [2] by 
  * V. Nehruji[*], D. Cortes[+], H. Fangohr[+,o], P. Hatton[*]
  *
+ * Working with Periodic Boundaries.
+ *
  * [*] Department of Physics, University of Durham
  * [+] University of Southampton
  * [o] European XFEL GmbH

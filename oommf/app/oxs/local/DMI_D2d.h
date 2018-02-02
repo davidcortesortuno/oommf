@@ -1,4 +1,4 @@
-/* FILE: DMI_D2d.h            -*-Mode: c++-*-
+/* FILE: DMI_D2d.cc            -*-Mode: c++-*-
  *
  * Dzyaloshinsky-Moriya class for materials with D_2d crystallographic
  * symmetry [1]:
@@ -7,6 +7,8 @@
  *
  * Modification from Oxs_exchange6ngbr [2] by 
  * V. Nehruji[*], D. Cortes[+], H. Fangohr[+,o], P. Hatton[*]
+ *
+ * Working with Periodic Boundaries.
  *
  * [*] Department of Physics, University of Durham
  * [+] University of Southampton

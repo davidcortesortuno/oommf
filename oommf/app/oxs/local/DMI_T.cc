@@ -1,16 +1,19 @@
 /* FILE: BulkDMI.cc
  *
- * T symmetry class Dzyaloshinskii-Moriya energy:
+ * T symmetry class Dzyaloshinskii-Moriya energy [1]:
  *
  * $w_\text{dmi} = D\mathbf{m} \cdot (\nabla \times \mathbf{m})$
  *
+ * Working with Periodic Boundaries.
+ *
  * Modification by D.Cortes, Marijan Beg, Ryan A. Pepper and Hans Fangohr
- * (University of Southampton) of Oxs_DMexchange6ngbr.h [1] - January 2017
+ * (University of Southampton) of Oxs_DMexchange6ngbr.h [2] - January 2017
  *
  * Developed as a part of OpenDreamKit Horizon 2020 European Research Infrastructure
  * project (676541), and the EPSRC Programme grant on Skyrmionics (EP/N032128/1).
  *
- * [1] Rohart, S., & Thiaville, A. Physical Review B, 88, 184422 (2013).
+ * [1] A. N. Bogdanov and D. A. Yablonskii. Zh. Eksp. Teor. Fiz. 95, 178-182 (1989).
+ * [2] Rohart, S., & Thiaville, A. Physical Review B, 88, 184422 (2013).
  *
 */
 
