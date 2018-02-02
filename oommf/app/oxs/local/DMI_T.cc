@@ -1,10 +1,11 @@
 /* FILE: BulkDMI.cc
  *
- * Bulk Dzyaloshinskii-Moriya energy:
+ * T symmetry class Dzyaloshinskii-Moriya energy:
  *
  * $w_\text{dmi} = D\mathbf{m} \cdot (\nabla \times \mathbf{m})$
  *
- * Modification by Marijan Beg, Ryan A. Pepper, D. Cortes and Hans Fangohr (University of Southampton) of Oxs_DMexchange6ngbr.h [1] - January 2017
+ * Modification by D.Cortes, Marijan Beg, Ryan A. Pepper and Hans Fangohr
+ * (University of Southampton) of Oxs_DMexchange6ngbr.h [1] - January 2017
  *
  * Developed as a part of OpenDreamKit Horizon 2020 European Research Infrastructure
  * project (676541), and the EPSRC Programme grant on Skyrmionics (EP/N032128/1).
@@ -24,19 +25,19 @@
 #include "simstate.h"
 #include "threevector.h"
 #include "rectangularmesh.h"
-#include "BulkDMI.h"
+#include "DMI_T.h"
 #include "energy.h"     // Needed to make MSVC++ 5 happy
 
 OC_USE_STRING;
 
 // Oxs_Ext registration support
-OXS_EXT_REGISTER(Oxs_BulkDMI);
+OXS_EXT_REGISTER(Oxs_DMI_T);
 
 /* End includes */
 
 
 // Constructor
-Oxs_BulkDMI::Oxs_BulkDMI(
+Oxs_DMI_T::Oxs_DMI_T(
   const char* name,     // Child instance id
   Oxs_Director* newdtr, // App director
   const char* argstr)   // MIF input block parameters
@@ -131,7 +132,7 @@ Oxs_BulkDMI::Oxs_BulkDMI(
   VerifyAllInitArgsUsed();
 }
 
-Oxs_BulkDMI::~Oxs_BulkDMI()
+Oxs_DMI_T::~Oxs_DMI_T()
 {
   if(A_size>0 && D!=NULL) {
     delete[] D[0];
@@ -139,14 +140,14 @@ Oxs_BulkDMI::~Oxs_BulkDMI()
   }
 }
 
-OC_BOOL Oxs_BulkDMI::Init()
+OC_BOOL Oxs_DMI_T::Init()
 {
   mesh_id = 0;
   region_id.Release();
   return Oxs_Energy::Init();
 }
 
-void Oxs_BulkDMI::GetEnergy
+void Oxs_DMI_T::GetEnergy
 (const Oxs_SimState& state,
  Oxs_EnergyData& oed
  ) const
@@ -163,7 +164,7 @@ void Oxs_BulkDMI::GetEnergy
     for(OC_INDEX i=0;i<size;i++) {
       state.mesh->Center(i,location);
       if((region_id[i] = atlas->GetRegionId(location))<0) {
-    String msg = String("Import mesh to Oxs_BulkDMI::GetEnergy()"
+    String msg = String("Import mesh to Oxs_DMI_T::GetEnergy()"
                             " routine of object ")
           + String(InstanceName())
       + String(" has points outside atlas ")
@@ -238,7 +239,7 @@ void Oxs_BulkDMI::GetEnergy
         ThreeVector sum(0.,0.,0.);
         OC_INDEX j;
 
-        if(x > 0 || xperiodic) {
+        if(x > 0 || xperiodic) {  // x- neighbour
           if(x > 0) {
             j = i - 1;        // j = mesh->Index(x-1,y,z)
           } else if (xperiodic) {
@@ -246,25 +247,25 @@ void Oxs_BulkDMI::GetEnergy
           }
           if(Ms_inverse[j] != 0.0) {
             OC_REAL8m Dpair = Drow[region_id[j]];
-            ThreeVector uij(-1.,0.,0);
-            sum += 0.5 * Dpair * wgtx * (spin[j] ^ uij);
+            ThreeVector Dij(-1.,0.,0);
+            sum += 0.5 * Dpair * wgtx * (Dij ^ spin[j]);
           }
         }
 
-        if(y > 0 || yperiodic) {
+        if(y > 0 || yperiodic) {  // y- neighbour
           if(y > 0) {
-            j = i-xdim;
+            j = i - xdim;
           } else if (yperiodic) {
             j = i - xdim + xydim;
           }
           if(Ms_inverse[j] != 0.0) {
             OC_REAL8m Dpair = Drow[region_id[j]];
-            ThreeVector uij(0.,-1.,0);
-            sum += 0.5 * Dpair * wgty * (spin[j] ^ uij);
+            ThreeVector Dij(0.,-1.,0);
+            sum += 0.5 * Dpair * wgty * (Dij ^ spin[j]);
           }
         }
 
-        if(z > 0 || zperiodic) {
+        if(z > 0 || zperiodic) {  // z- neighbour
           if(z > 0) {
             j = i - xydim;
           } else if (zperiodic) {
@@ -272,8 +273,8 @@ void Oxs_BulkDMI::GetEnergy
           }
           if(Ms_inverse[j] != 0.0) {
             OC_REAL8m Dpair = Drow[region_id[j]];
-            ThreeVector uij(0.,0.,-1.);
-            sum += 0.5 * Dpair * wgtz * (spin[j] ^ uij);
+            ThreeVector Dij(0.,0.,-1.);
+            sum += 0.5 * Dpair * wgtz * (Dij ^ spin[j]);
           }
         }
 
@@ -285,8 +286,8 @@ void Oxs_BulkDMI::GetEnergy
           }
           if (Ms_inverse[j] != 0.0) {
             OC_REAL8m Dpair = Drow[region_id[j]];
-            ThreeVector uij(1.,0.,0);
-            sum += 0.5 * Dpair * wgtx * (spin[j] ^ uij);
+            ThreeVector Dij(1.,0.,0);
+            sum += 0.5 * Dpair * wgtx * (Dij ^ spin[j]);
           }
         }
 
@@ -298,8 +299,8 @@ void Oxs_BulkDMI::GetEnergy
           }
           if(Ms_inverse[j] != 0.0) {
             OC_REAL8m Dpair = Drow[region_id[j]];
-            ThreeVector uij(0.,1.,0);
-            sum += 0.5 * Dpair * wgty * (spin[j] ^ uij);
+            ThreeVector Dij(0.,1.,0);
+            sum += 0.5 * Dpair * wgty * (Dij ^ spin[j]);
           }
         }
 
@@ -311,8 +312,8 @@ void Oxs_BulkDMI::GetEnergy
           }
           if(Ms_inverse[j] != 0.0) {
             OC_REAL8m Dpair = Drow[region_id[j]];
-            ThreeVector uij(0.,0.,1.);
-            sum += 0.5 * Dpair * wgtz * (spin[j] ^ uij);
+            ThreeVector Dij(0.,0.,1.);
+            sum += 0.5 * Dpair * wgtz * (Dij ^ spin[j]);
           }
         }
 

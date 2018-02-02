@@ -3,7 +3,7 @@
  * Dzyaloshinsky-Moriya class for materials with D_2d crystallographic
  * symmetry [1]:
  *
- *      w_D = D ( L_{xz}^{(y)} + L_{yz}^{(x)} )
+ *      w_D = D ( L_{zx}^{(y)} + L_{zy}^{(x)} )
  *
  * Modification from Oxs_exchange6ngbr [2] by 
  * V. Nehruji[*], D. Cortes[+], H. Fangohr[+,o], P. Hatton[*]
